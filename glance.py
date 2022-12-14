@@ -1,5 +1,6 @@
 #!/usr/bin env python3
 
+import argparse
 import chromedriver_autoinstaller
 import os
 import re
@@ -27,22 +28,27 @@ chrome_options.add_argument("--dns-prefetch-disable")
 chrome_options.add_argument("--disable-gpu")
 driver = webdriver.Chrome(options=chrome_options)
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-m", "--mission", type=str, help="Current mission name")
+parser.add_argument("-i", "--ip_list", type=str, help="Text file with IPs to be scanned")
 
+# Parse the command-line arguments
+args = parser.parse_args()
 
 def nmap_disc_scan():
     os.mkdir("nmap_output")
     # The actual NMAP discover scan, from runbook
     os.system(
-        'nmap -Pn -n -sS -p 21-23,25,53,80,111,137,139,445,443,944,1433,1521,1830,3306,3389,5432,6379,8443,8080,27017-27019,28017 --min-hostgroup 255 --min-rtt-timeout 0ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 6000 -oA "nmap_output/' + mission_name + '-disc" -vvv --open -iL ' + ip_file + "\n")
+        'nmap -Pn -n -sS -p 21-23,25,53,80,111,137,139,445,443,944,1433,1521,1830,3306,3389,5432,6379,8443,8080,27017-27019,28017 --min-hostgroup 255 --min-rtt-timeout 0ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 6000 -oA "nmap_output/' + args.mission + '-disc" -vvv --open -iL ' + args.ip_list + "\n")
 
-    print("\nYour output file is " + mission_name + "-disc.nmap, .xml, and .gnmap\n")
+    print("\nYour output file is " + args.mission + "-disc.nmap, .xml, and .gnmap\n")
 
     os.mkdir("parsed_results")
 
     # Taking the newly created greppable file and extracting
     # hosts that responded, creating a master list (livehosts.txt),
     # and organizing them by open ports.
-    with open('nmap_output/' + mission_name + '-disc.gnmap', 'r') as disc_grep:
+    with open('nmap_output/' + args.mission + '-disc.gnmap', 'r') as disc_grep:
         os.chdir("parsed_results")
         lines = disc_grep.readlines()
         for line in lines:
@@ -83,8 +89,8 @@ def nmap_full_scan():
     print("\nBeginning FULL scan\n")
     # The actual NMAP full scan, from runbook
     os.system(
-        'nmap -Pn -n -sS -p- --min-hostgroup 255 --min-rtt-timeout 25ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 1000 -oA "nmap_output/' + mission_name + '-full" -vvv --open -iL parsed_results/livehosts.txt' + "\n")
-    with open('nmap_output/' + mission_name + '-full.gnmap', 'r') as full_grep:
+        'nmap -Pn -n -sS -p- --min-hostgroup 255 --min-rtt-timeout 25ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 1000 -oA "nmap_output/' + args.mission + '-full" -vvv --open -iL parsed_results/livehosts.txt' + "\n")
+    with open('nmap_output/' + args.mission + '-full.gnmap', 'r') as full_grep:
         lines = full_grep.readlines()
         for line in lines:
             if re.search(r"(5985/open|5986/open)", line):
@@ -256,10 +262,8 @@ def call_to_threads():
     t4_html_pages.start()
 
 
-print('\n(_, |_ /\ |\| ( [- \n')
-
-ip_file = input("Enter your file here: ")
-mission_name = input("Enter engagement name:")
+print('\n(_, |_ /\ |\| ( [- \nfrom 〸山 \n')
+sleep(2)
 
 nmap_disc_scan()
 call_to_threads()
