@@ -89,10 +89,13 @@ def nmap_disc_scan():
             if re.search(r"(3389/open)", line):
                 rdp_3389 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
                 print(rdp_3389.group(0), file=open("parsed_results/rdp.txt", "a"))
+            
+            #######Makes a text file named the port number .txt and lists all of the IPs with that port open.
+            pattern = re.compile(r" \d{1,5}/")
             if re.search(r"(\d{1,5}/open)", line):
-                rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                rhp = re.search(r"(\d{1,5})/open", line)
-                print(rhp_ip.group(0), file=open("parsed_results/" + rhp.group(1) + ".txt", "a"))
+                for port in re.finditer(pattern, line):
+                    rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
+                    print(rhp_ip.group(0), file=open("parsed_results/" + port.group(0).replace('/', '') + ".txt", "a"))
 
 
 def nmap_full_scan():
@@ -114,10 +117,11 @@ def nmap_full_scan():
                 f = open("parsed_results/winrm.txt", "a")
                 f.write(winrm_open.group(0))
                 f.close()
+            pattern = re.compile(r" \d{1,5}/")
             if re.search(r"(\d{1,5}/open)", line):
-                rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                rhp = re.search(r"(\d{1,5})/open", line)
-                print(rhp_ip.group(0), file=open("parsed_results/" + rhp.group(1) + ".txt", "a"))
+                for port in re.finditer(pattern, line):
+                    rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
+                    print(rhp_ip.group(0), file=open("parsed_results/" + port.group(0).replace('/', '') + ".txt", "a"))
             
 
 def get_screenshots():
