@@ -1,16 +1,18 @@
 #!/usr/bin env python3
 
 import argparse
+import ctypes
 import os
 import re
 import requests
 import shutil
-from time import sleep
+import sys
 import urllib3
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from time import sleep
 from threading import Thread
 
 #hopefully mutes insecure warnings
@@ -23,72 +25,83 @@ driver = webdriver.Firefox(options=options)
 
 #implements options
 parser = argparse.ArgumentParser()
-parser.add_argument("-m", "--mission", type=str, help="Current mission name")
-parser.add_argument("-i", "--ip_list", type=str, help="Text file with IPs to be scanned")
+parser.add_argument("-m", type=str, help="Current mission name")
+parser.add_argument("-f", type=str, help="Text file with IPs to be scanned")
+parser.add_argument("-i", type=str, help="IP(s) or netblocks to scan. If multiple, surround by quotes and separate with spaces.")
 
 # Parse the options
 args = parser.parse_args()
 
 ##########Actual start of the program##########
 def nmap_disc_scan():
-    os.mkdir("nmap_output")
-    # The actual NMAP discover scan, from runbook
-    os.system(
-        'nmap -Pn -n -sS -p 21-23,25,53,80,111,137,139,445,443,944,1433,1521,1830,3306,3389,5432,6379,8443,8080,27017-27019,28017 --min-hostgroup 255 --min-rtt-timeout 0ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 6000 -oA "nmap_output/' + args.mission + '-disc" -vvv --open -iL ' + args.ip_list + "\n")
-
-    print("\nYour output file is " + args.mission + "-disc.nmap, .xml, and .gnmap\n")
+    if args.f:
+        os.mkdir("nmap_output")
+        # The actual NMAP discover scan, from runbook
+        os.system(
+        'nmap -Pn -n -sS -p 21-23,25,53,80,111,137,139,445,443,944,1433,1521,1830,3306,3389,5432,6379,8443,8080,27017-27019,28017 --min-hostgroup 255 --min-rtt-timeout 0ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 6000 -oA "nmap_output/' + args.m + '-disc" -vvv --open -iL ' + args.f + "\n")
+    elif args.i:
+        os.mkdir("nmap_output")
+        # The actual NMAP discover scan, from runbook
+        os.system(
+        'nmap -Pn -n -sS -p 21-23,25,53,80,111,137,139,445,443,944,1433,1521,1830,3306,3389,5432,6379,8443,8080,27017-27019,28017 --min-hostgroup 255 --min-rtt-timeout 0ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 6000 -oA "nmap_output/' + args.m + '-disc" -vvv --open ' + args.i + "\n")
+        sleep(3)
+        
+    print("\nYour output file is " + args.m + "-disc.nmap, .xml, and .gnmap\n")
 
     os.mkdir("parsed_results")
 
     # Taking the newly created greppable file and extracting
     # hosts that responded, creating a master list (livehosts.txt),
     # and organizing them by open ports.
-    with open('nmap_output/' + args.mission + '-disc.gnmap', 'r') as disc_grep:
-        os.chdir("parsed_results")
+    with open('nmap_output/' + args.m + '-disc.gnmap', 'r') as disc_grep:
         lines = disc_grep.readlines()
         for line in lines:
             if re.search(r"Up$", line):
                 livehosts = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(livehosts.group(0), file=open("livehosts.txt", "a"))
+                print(livehosts.group(0), file=open("parsed_results/livehosts.txt", "a"))
             if re.search(r"(80/open)", line):
                 web_80 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("http://" + web_80.group(0) + ":80", file=open("web.txt", "a"))
+                print("http://" + web_80.group(0) + ":80", file=open("parsed_results/web.txt", "a"))
             if re.search(r"(\b443/open)", line):
                 web_443 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("https://" + web_443.group(0) + ":443", file=open("web.txt", "a"))
+                print("https://" + web_443.group(0) + ":443", file=open("parsed_results/web.txt", "a"))
             if re.search(r"(137/open|139/open|445/open)", line):
                 smb_445 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(smb_445.group(0), file=open("smb.txt", "a"))
+                print(smb_445.group(0), file=open("parsed_results/smb.txt", "a"))
             if re.search(r"(21/open)", line):
                 line_ftp = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_ftp.group(0), file=open("ftp.txt", "a"))
+                print(line_ftp.group(0), file=open("parsed_results/ftp.txt", "a"))
             if re.search(r"(22/open)", line):
                 line_ssh = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_ssh.group(0), file=open("ssh.txt", "a"))
+                print(line_ssh.group(0), file=open("parsed_results/ssh.txt", "a"))
             if re.search(r"(23/open)", line):
                 line_telnet = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_telnet.group(0), file=open("telnet.txt", "a"))
+                print(line_telnet.group(0), file=open("parsed_results/telnet.txt", "a"))
             if re.search(r"(8080/open)", line):
                 line_http_8080 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("http://" + line_http_8080.group(0) + ":8080", file=open("web.txt", "a"))
+                print("http://" + line_http_8080.group(0) + ":8080", file=open("parsed_results/web.txt", "a"))
             if re.search(r"(8443/open)", line):
                 web_8443 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("https://" + web_8443.group(0) + ":8443", file=open("web.txt", "a"))
+                print("https://" + web_8443.group(0) + ":8443", file=open("parsed_results/web.txt", "a"))
             if re.search(r"(3306/open)", line):
                 sql_3306 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(sql_3306.group(0), file=open("sql_3306.txt", "a"))
+                print(sql_3306.group(0), file=open("parsed_results/sql_3306.txt", "a"))
             if re.search(r"(3389/open)", line):
                 rdp_3389 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(rdp_3389.group(0), file=open("rdp.txt", "a"))
-    os.chdir("..")
+                print(rdp_3389.group(0), file=open("parsed_results/rdp.txt", "a"))
+            if re.search(r"(\d{1,5}/open)", line):
+                rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
+                rhp = re.search(r"(\d{1,5})/open", line)
+                print(rhp_ip.group(0), file=open("parsed_results/" + rhp.group(1) + ".txt", "a"))
+
 
 def nmap_full_scan():
     # Starting intense scan
     print("\nBeginning FULL scan\n")
     # The actual NMAP full scan, from runbook
     os.system(
-        'nmap -Pn -n -sS -p- --min-hostgroup 255 --min-rtt-timeout 25ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 1000 -oA "nmap_output/' + args.mission + '-full" -vvv --open -iL parsed_results/livehosts.txt' + "\n")
-    with open('nmap_output/' + args.mission + '-full.gnmap', 'r') as full_grep:
+        'nmap -Pn -n -sS -p- --min-hostgroup 255 --min-rtt-timeout 25ms --max-rtt-timeout 100ms --max-retries 1 --max-scan-delay 0 --min-rate 1000 -oA "nmap_output/' + args.m + '-full" -vvv --open -iL parsed_results/livehosts.txt' + "\n")
+    with open('nmap_output/' + args.m + '-full.gnmap', 'r') as full_grep:
         lines = full_grep.readlines()
         for line in lines:
             if re.search(r"(4444/open)", line):
@@ -101,6 +114,10 @@ def nmap_full_scan():
                 f = open("parsed_results/winrm.txt", "a")
                 f.write(winrm_open.group(0))
                 f.close()
+            if re.search(r"(\d{1,5}/open)", line):
+                rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
+                rhp = re.search(r"(\d{1,5})/open", line)
+                print(rhp_ip.group(0), file=open("parsed_results/" + rhp.group(1) + ".txt", "a"))
             
 
 def get_screenshots():
@@ -266,8 +283,47 @@ def call_to_threads():
     t4_html_pages.start()
 
 
+#####################################################################################
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<program starts>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>#
+#####################################################################################
+
+
+# check if the script is being run as root on Linux or POSIX-compatible systems
+if hasattr(os, "getuid") and hasattr(os, "geteuid"):
+    if not (os.getuid() == 0 or os.geteuid() == 0):
+        print("Must be run as root!")
+        sys.exit(1)
+
+# check if the script is being run as an administrator on Windows
+elif hasattr(ctypes, "windll") and hasattr(ctypes.windll.shell32, "IsUserAnAdmin"):
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        print("Must be run as an administrator!")
+        sys.exit(1)
+
+# if the script is not being run as root or as an administrator, exit with an error
+else:
+    print("Must be run as root or as an administrator!")
+    sys.exit(1)
+
+# if the script is being run as root or as an administrator, start the script.
+
 print('\n(_, |_ /\ |\| ( [- \nfrom 〸山 \n')
 sleep(2)
+
+with open('geckodriver.log', 'w+') as fp:
+    pass
+if os.path.exists("screenshots"):
+        shutil.rmtree("screenshots")
+if os.path.exists("html_build"):
+        shutil.rmtree("html_build")
+if os.path.exists("html_pages"):
+        shutil.rmtree("html_pages")
+if os.path.exists("nmap_output"):
+        shutil.rmtree("nmap_output")
+if os.path.exists("parsed_results"):
+        shutil.rmtree("parsed_results")
+if os.path.exists("web_info"):
+        shutil.rmtree("web_info")
 
 nmap_disc_scan()
 call_to_threads()
