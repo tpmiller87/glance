@@ -56,47 +56,33 @@ def nmap_disc_scan():
     with open('nmap_output/' + args.m + '-disc.gnmap', 'r') as disc_grep:
         lines = disc_grep.readlines()
         for line in lines:
+            port_pattern = re.compile(r" \d{1,5}/")
             if re.search(r"Up$", line):
                 livehosts = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
                 print(livehosts.group(0), file=open("parsed_results/livehosts.txt", "a"))
-            if re.search(r"(80/open)", line):
-                web_80 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("http://" + web_80.group(0) + ":80", file=open("parsed_results/web.txt", "a"))
-            if re.search(r"(\b443/open)", line):
-                web_443 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("https://" + web_443.group(0) + ":443", file=open("parsed_results/web.txt", "a"))
-            if re.search(r"(137/open|139/open|445/open)", line):
-                smb_445 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(smb_445.group(0), file=open("parsed_results/smb.txt", "a"))
-            if re.search(r"(21/open)", line):
-                line_ftp = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_ftp.group(0), file=open("parsed_results/ftp.txt", "a"))
-            if re.search(r"(22/open)", line):
-                line_ssh = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_ssh.group(0), file=open("parsed_results/ssh.txt", "a"))
-            if re.search(r"(23/open)", line):
-                line_telnet = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(line_telnet.group(0), file=open("parsed_results/telnet.txt", "a"))
-            if re.search(r"(8080/open)", line):
-                line_http_8080 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("http://" + line_http_8080.group(0) + ":8080", file=open("parsed_results/web.txt", "a"))
-            if re.search(r"(8443/open)", line):
-                web_8443 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print("https://" + web_8443.group(0) + ":8443", file=open("parsed_results/web.txt", "a"))
-            if re.search(r"(3306/open)", line):
-                sql_3306 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(sql_3306.group(0), file=open("parsed_results/sql_3306.txt", "a"))
-            if re.search(r"(3389/open)", line):
-                rdp_3389 = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                print(rdp_3389.group(0), file=open("parsed_results/rdp.txt", "a"))
-            
-            #######Makes a text file named the port number .txt and lists all of the IPs with that port open.
-            pattern = re.compile(r" \d{1,5}/")
             if re.search(r"(\d{1,5}/open)", line):
-                for port in re.finditer(pattern, line):
+                for port in re.finditer(port_pattern, line):
                     rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
                     print(rhp_ip.group(0), file=open("parsed_results/" + port.group(0).replace('/', '') + ".txt", "a"))
-
+                    swez = rhp_ip.group(0) + ":" + port.group(0).replace('/', '').strip()
+                    if swez.endswith(":80") or swez.endswith(":8080") or swez.endswith(":8000") or swez.endswith(":3389"):
+                        print("http://" + rhp_ip.group(0) + ":" + port.group(0).replace('/', '').strip(), file=open("parsed_results/web.txt", "a"))
+                    if swez.endswith(":443") or swez.endswith(":8443") or swez.endswith(":3389"):
+                        print("https://" + rhp_ip.group(0) + ":" + port.group(0).replace('/', '').strip(), file=open("parsed_results/web.txt", "a"))
+                    if swez.endswith(":137") or swez.endswith(":139") or swez.endswith(":445"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/smb.txt", "a"))
+                    if swez.endswith("21"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/ftp.txt", "a"))
+                    if swez.endswith(":22"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/ssh.txt", "a"))
+                    if swez.endswith(":23"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/telnet.txt", "a"))
+                    if swez.endswith(":3306"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/sql_3306.txt", "a"))
+                    if swez.endswith(":3389"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/rdp.txt", "a"))
+                    if int(port.group(0).replace('/', '').strip()) >= int(1025):
+                        print(port.group(0).replace('/', '').strip(), file=open("parsed_results/ephemeral.txt", "a"))
 
 def nmap_full_scan():
     # Starting intense scan
@@ -107,33 +93,30 @@ def nmap_full_scan():
     with open('nmap_output/' + args.m + '-full.gnmap', 'r') as full_grep:
         lines = full_grep.readlines()
         for line in lines:
-            if re.search(r"(4444/open)", line):
-                uhoh_open = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                f = open("parsed_results/METASPLOIT.txt", "a")
-                f.write(uhoh_open.group(0))
-                f.close()
-            if re.search(r"(5985/open|5986/open)", line):
-                winrm_open = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
-                f = open("parsed_results/winrm.txt", "a")
-                f.write(winrm_open.group(0))
-                f.close()
             pattern = re.compile(r" \d{1,5}/")
             if re.search(r"(\d{1,5}/open)", line):
                 for port in re.finditer(pattern, line):
                     rhp_ip = re.search(r"[0-9]+(?:\.[0-9]+){3}", line)
+                    swez = rhp_ip.group(0) + ":" + port.group(0).replace('/', '').strip()
                     print(rhp_ip.group(0), file=open("parsed_results/" + port.group(0).replace('/', '') + ".txt", "a"))
-            
+                    if int(port.group(0).replace('/', '').strip()) >= int(1025):
+                        print(port.group(0).replace('/', '').strip(), file=open("parsed_results/ephemeral.txt", "a"))
+                    if swez.endswith(":4444"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/METASPLOIT_CHECK_NOW.txt", "a"))
+                    if swez.endswith(":5985") or swez.endswith(":5986"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/WinRM.txt", "a"))
+                    if swez.endswith(":1433"):
+                        print(rhp_ip.group(0).strip(), file=open("parsed_results/MSSQL.txt", "a"))
 
 def get_screenshots():
     os.mkdir("screenshots")
     with open("parsed_results/web.txt", "r") as web:
-        scrape_these = web.readlines()
-        fscrape = [x[:-1] for x in scrape_these]
-        for i in fscrape:
-            fname = re.search(r"(?<=//)(.*?)(?=:)", i).group(0)
+        for i in web.readlines():
+            istrip = i.strip()
+            fname = re.search(r"(?<=//)(.*?)(?=:)", istrip).group(0)
             try:
-                if i.endswith(":80"):
-                    driver.get(i) #navigates to URL
+                if istrip.endswith(":80"):
+                    driver.get(istrip) #navigates to URL
                     sleep(2) #sleeps for two seconds to load page
                     driver.save_screenshot(fname + "_80.png") #takes the screenshot, saving as IP + port
                     files = os.listdir(".")
@@ -142,8 +125,8 @@ def get_screenshots():
                             shutil.copy(file, "screenshots")
                             os.makedirs("html_build/" + fname + "_80", exist_ok=True)
                             shutil.move(file, "html_build/" + fname + "_80")
-                if i.endswith(":8080"):
-                    driver.get(i)
+                if istrip.endswith(":8080"):
+                    driver.get(istrip)
                     sleep(2)
                     driver.save_screenshot(fname + "_8080.png")
                     files = os.listdir(".")
@@ -152,8 +135,8 @@ def get_screenshots():
                             shutil.copy(file, "screenshots")
                             os.makedirs("html_build/" + fname + "_8080", exist_ok=True)
                             shutil.move(file, "html_build/" + fname + "_8080")
-                if i.endswith(":443"):
-                    driver.get(i)
+                if istrip.endswith(":443"):
+                    driver.get(istrip)
                     sleep(2)
                     driver.save_screenshot(fname + "_443.png")
                     files = os.listdir(".")
@@ -162,8 +145,8 @@ def get_screenshots():
                             shutil.copy(file, "screenshots")
                             os.makedirs("html_build/" + fname + "_443", exist_ok=True)
                             shutil.move(file, "html_build/" + fname + "_443")
-                if i.endswith(":8443"):
-                    driver.get(i)
+                if istrip.endswith(":8443"):
+                    driver.get(istrip)
                     sleep(2)
                     driver.save_screenshot(fname + "_8443.png")
                     files = os.listdir(".")
@@ -180,12 +163,11 @@ def get_screenshots():
 def get_site_info():
     os.mkdir("web_info")
     with open("parsed_results/web.txt", "r") as web_info:
-        scrape_these = web_info.readlines()
-        fscrape_web = [x[:-1] for x in scrape_these]
-        for i in fscrape_web:
-            fname = re.search(r"(?<=//)(.*?)(?=:)", i).group(0)
+        for i in web_info.readlines():
+            istrip = i.strip()
+            fname = re.search(r"(?<=//)(.*?)(?=:)", istrip).group(0)
             try:
-                if i.endswith(":80"):
+                if istrip.endswith(":80"):
                     data = requests.get(i, verify=False, timeout=10)
                     page_title = BeautifulSoup(data.text, 'html.parser')
                     for title in page_title.find_all('title'):
@@ -195,7 +177,7 @@ def get_site_info():
                     os.makedirs("html_build/" + fname + "_80", exist_ok=True)
                     shutil.copy(fname + "_80.txt", "html_build/" + fname + "_80")
                     shutil.move(fname + "_80.txt", "web_info")
-                if i.endswith(":8080"):
+                if istrip.endswith(":8080"):
                     data = requests.get(i, verify=False, timeout=10)
                     page_title = BeautifulSoup(data.text, 'html.parser')
                     for title in page_title.find_all('title'):
@@ -205,7 +187,7 @@ def get_site_info():
                     os.makedirs("html_build/" + fname + "_8080", exist_ok=True)
                     shutil.copy(fname + "_8080.txt", "html_build/" + fname + "_8080")
                     shutil.move(fname + "_8080.txt", "web_info")
-                if i.endswith(":443"):
+                if istrip.endswith(":443"):
                     data = requests.get(i, verify=False, timeout=10)
                     page_title = BeautifulSoup(data.text, 'html.parser')
                     for title in page_title.find_all('title'):
@@ -215,7 +197,7 @@ def get_site_info():
                     os.makedirs("html_build/" + fname + "_443", exist_ok=True)
                     shutil.copy(fname + "_443.txt", "html_build/" + fname + "_443")
                     shutil.move(fname + "_443.txt", "web_info")
-                if i.endswith(":8443"):
+                if istrip.endswith(":8443"):
                     data = requests.get(i, verify=False, timeout=10)
                     page_title = BeautifulSoup(data.text, 'html.parser')
                     for title in page_title.find_all('title'):
